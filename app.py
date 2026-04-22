@@ -120,12 +120,6 @@ st.sidebar.header("Filtros")
 
 tipos = st.sidebar.multiselect("Tipo", df["Tipo"].unique(), default=df["Tipo"].unique())
 anos = st.sidebar.multiselect("Ano", df["Ano"].unique(), default=df["Ano"].unique())
-contas = st.sidebar.multiselect(
-    "Conta",
-    df["Conta"].unique(),
-    default=df["Conta"].unique()
-)
-
 meses = st.sidebar.multiselect(
     "Mês",
     df["Mes"].unique(),
@@ -142,7 +136,6 @@ valor_min, valor_max = st.sidebar.slider(
 df_f = df[
     (df["Tipo"].isin(tipos)) &
     (df["Ano"].isin(anos)) &
-    (df["Conta"].isin(contas)) &
     (df["Mes"].isin(meses)) &
     (df["Valor"] >= valor_min) &
     (df["Valor"] <= valor_max)
