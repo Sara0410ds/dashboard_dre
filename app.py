@@ -1,15 +1,10 @@
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Image
-from reportlab.lib.styles import getSampleStyleSheet
-import tempfile
 
 st.set_page_config(page_title="Dashboard Interativo DRE", layout="wide")
 
-# ---------------------------
 # LOGIN
-# ---------------------------
 if "logado" not in st.session_state:
     st.session_state["logado"] = False
 
@@ -28,9 +23,6 @@ if not st.session_state["logado"]:
 
     st.stop()
 
-# ---------------------------
-# CONFIG
-# ---------------------------
 ARQUIVO_PADRAO = "DRE 2019.xlsx"
 
 @st.cache_data
@@ -63,49 +55,7 @@ def carregar_dados(arquivo):
 
     return df
 
-# ---------------------------
-# PDF (CORRIGIDO)
-# ---------------------------
-def gerar_pdf(df_pivot, fig_comp):
-    styles = getSampleStyleSheet()
-    pdf_file = "dashboard.pdf"
-
-    doc = SimpleDocTemplate(pdf_file)
-    elementos = []
-
-    # Título
-    elementos.append(Paragraph("Relatório DRE", styles["Title"]))
-    elementos.append(Spacer(1, 12))
-
-    # Métrica
-    total = df_pivot["Realizado"].sum()
-    elementos.append(Paragraph(f"Total Realizado: R$ {total:,.2f}", styles["Normal"]))
-    elementos.append(Spacer(1, 12))
-
-    # 🔥 EXPORTAÇÃO DO GRÁFICO SEM ERRO
-    img_bytes = fig_comp.to_image(format="png")
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmp:
-        with open(tmp.name, "wb") as f:
-            f.write(img_bytes)
-
-        elementos.append(Image(tmp.name, width=500, height=300))
-
-    elementos.append(Spacer(1, 12))
-
-    # Tabela
-    for _, row in df_pivot.iterrows():
-        linha = f"{row['Mes_Nome']} | Dif: {row['Diferença']:.2f} | {row['Status']}"
-        elementos.append(Paragraph(linha, styles["Normal"]))
-
-    doc.build(elementos)
-
-    return pdf_file
-
-# ---------------------------
-# APP
-# ---------------------------
-st.title("📊 Dashboard Interativo de Análise de Dados")
+st.title("Dashboard Interativo de Análise de Dados")
 
 with st.sidebar:
     st.header("Configurações")
@@ -119,9 +69,7 @@ else:
 st.subheader("Pré-visualização dos dados")
 st.dataframe(df.head(20), use_container_width=True)
 
-# ---------------------------
 # FILTROS
-# ---------------------------
 st.sidebar.header("Filtros")
 
 tipos = st.sidebar.multiselect("Tipo", df["Tipo"].unique(), default=df["Tipo"].unique())
@@ -129,27 +77,21 @@ anos = st.sidebar.multiselect("Ano", df["Ano"].unique(), default=df["Ano"].uniqu
 
 df_f = df[(df["Tipo"].isin(tipos)) & (df["Ano"].isin(anos))]
 
-# ---------------------------
 # MÉTRICAS
-# ---------------------------
 col1, col2, col3 = st.columns(3)
 
 col1.metric("Total", f"R$ {df_f['Valor'].sum():,.0f}")
 col2.metric("Média", f"R$ {df_f['Valor'].mean():,.0f}")
 col3.metric("Registros", len(df_f))
 
-# ---------------------------
-# GRÁFICO GERAL
-# ---------------------------
-st.subheader("📊 Gráfico Geral")
+# 📊 GRÁFICO PRINCIPAL
+st.subheader("Gráfico Geral")
 
 fig = px.bar(df_f, x="Mes_Nome", y="Valor", color="Tipo", barmode="group")
 st.plotly_chart(fig, use_container_width=True)
 
-# ---------------------------
-# COMPARAÇÃO
-# ---------------------------
-st.subheader("📊 Comparação Real x Orçado")
+# COMPARAÇÃO REAL X ORÇADO
+st.subheader("Comparação Real x Orçado")
 
 df_comp = df_f.groupby(["Mes_Nome", "Tipo"])["Valor"].sum().reset_index()
 
@@ -164,10 +106,8 @@ fig_comp = px.bar(
 
 st.plotly_chart(fig_comp, use_container_width=True)
 
-# ---------------------------
-# ANÁLISE
-# ---------------------------
-st.subheader("📉 Análise de Desempenho")
+# DETECÇÃO DE PREJUÍZO
+st.subheader("Análise de Desempenho")
 
 df_pivot = df_f.pivot_table(
     index="Mes_Nome",
@@ -175,8 +115,6 @@ df_pivot = df_f.pivot_table(
     values="Valor",
     aggfunc="sum"
 ).reset_index()
-
-df_pivot = df_pivot.fillna(0)
 
 df_pivot["Diferença"] = df_pivot["Realizado"] - df_pivot["Orçado"]
 
@@ -187,26 +125,22 @@ df_pivot["Status"] = df_pivot["Diferença"].apply(status)
 
 st.dataframe(df_pivot, use_container_width=True)
 
-# ---------------------------
 # EXPORTAR PDF
-# ---------------------------
-if st.button("📄 Exportar PDF"):
-    pdf_path = gerar_pdf(df_pivot, fig_comp)
-
-    with open(pdf_path, "rb") as f:
+if st.button("Exportar PDF"):
+    fig_comp.write_image("dashboard.pdf")
+    
+    with open("dashboard.pdf", "rb") as f:
         st.download_button(
-            "⬇️ Baixar PDF",
+            "Baixar PDF",
             f,
             file_name="dashboard.pdf"
         )
 
-# ---------------------------
 # EXPORTAR CSV
-# ---------------------------
 csv = df_pivot.to_csv(index=False).encode("utf-8-sig")
 
 st.download_button(
-    "⬇️ Baixar tabela em CSV",
+    "Baixar tabela em CSV",
     data=csv,
     file_name="resumo.csv",
     mime="text/csv",
