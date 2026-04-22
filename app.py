@@ -55,6 +55,52 @@ def carregar_dados(arquivo):
 
     return df
 
+
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.styles import getSampleStyleSheet
+
+def gerar_pdf(df_pivot):
+    pdf_file = "dashboard.pdf"
+    styles = getSampleStyleSheet()
+
+    doc = SimpleDocTemplate(pdf_file)
+    elementos = []
+
+    # Título
+    elementos.append(Paragraph("Relatório DRE", styles["Title"]))
+    elementos.append(Spacer(1, 12))
+
+    # Cabeçalho da tabela
+    dados = [["Mês", "Realizado", "Orçado", "Diferença", "Status"]]
+
+    # Linhas
+    for _, row in df_pivot.iterrows():
+        dados.append([
+            row["Mes_Nome"],
+            f"{row['Realizado']:.2f}",
+            f"{row['Orçado']:.2f}",
+            f"{row['Diferença']:.2f}",
+            row["Status"]
+        ])
+
+    # Criar tabela
+    tabela = Table(dados)
+
+    tabela.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
+        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
+        ("GRID", (0, 0), (-1, -1), 1, colors.black),
+        ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
+    ]))
+
+    elementos.append(tabela)
+
+    doc.build(elementos)
+
+    return pdf_file
+
 st.title("Dashboard Interativo de Análise de Dados")
 
 with st.sidebar:
@@ -84,7 +130,7 @@ col1.metric("Total", f"R$ {df_f['Valor'].sum():,.0f}")
 col2.metric("Média", f"R$ {df_f['Valor'].mean():,.0f}")
 col3.metric("Registros", len(df_f))
 
-# 📊 GRÁFICO PRINCIPAL
+# GRÁFICO PRINCIPAL
 st.subheader("Gráfico Geral")
 
 fig = px.bar(df_f, x="Mes_Nome", y="Valor", color="Tipo", barmode="group")
@@ -127,16 +173,19 @@ st.dataframe(df_pivot, use_container_width=True)
 
 # EXPORTAR PDF
 if st.button("Exportar PDF"):
-    fig_comp.write_image("dashboard.pdf")
-    
-    with open("dashboard.pdf", "rb") as f:
+    pdf_path = gerar_pdf(df_pivot)
+
+    with open(pdf_path, "rb") as f:
         st.download_button(
             "Baixar PDF",
             f,
             file_name="dashboard.pdf"
         )
 
+st.dataframe(df_pivot, use_container_width=True)
+
 # EXPORTAR CSV
+
 csv = df_pivot.to_csv(index=False).encode("utf-8-sig")
 
 st.download_button(
